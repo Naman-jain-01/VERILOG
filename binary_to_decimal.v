@@ -1,8 +1,9 @@
 module BinaryToDecimalConverter (
     input wire clk,            // FPGA clock (50MHz or 100MHz)
-    input wire [9:0] bin,      // 10-bit binary input from switches
+    input wire [9:0] sw,      // 10-bit binary input from switches
     output reg [6:0] seg,      // 7-segment display segments (A-G)
-    output reg [3:0] an        // 4-digit display enable (active-low)
+    output reg [3:0] an,       // 4-digit display enable (active-low)
+    output reg [9:0] led       // LEDs to match the input switches
 );
 
     reg [3:0] bcd_digits [3:0];  // BCD storage for 4 digits
@@ -13,8 +14,8 @@ module BinaryToDecimalConverter (
     integer i;
     reg [19:0] shift_reg; // 10-bit binary + 10-bit BCD
 
-    always @(bin) begin
-        shift_reg = {10'b0, bin}; // Initialize shift register
+    always @(sw) begin
+        shift_reg = {10'b0, sw}; // Initialize shift register
         for (i = 0; i < 10; i = i + 1) begin
             // If any BCD digit is >= 5, add 3
             if (shift_reg[13:10] >= 5) shift_reg[13:10] = shift_reg[13:10] + 3;
@@ -28,6 +29,9 @@ module BinaryToDecimalConverter (
         bcd_digits[1] = shift_reg[17:14]; // Tens
         bcd_digits[2] = shift_reg[19:18]; // Hundreds
         bcd_digits[3] = 4'b0000;          // Thousands (Always 0, max number is 1023)
+        
+        // **Mirror switch input to LEDs**
+        led = sw; // Directly assign input switches to LEDs
     end
 
     // **Clock division for 7-segment refresh (slow down display switching)**
