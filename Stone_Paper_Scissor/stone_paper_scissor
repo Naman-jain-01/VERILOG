@@ -1,0 +1,78 @@
+module stone_paper_scissor (
+    input clk,              // System clock (100MHz on Basys3)
+    input btnC,             // Button to confirm move
+    input [2:0] SW,         // User input (001=Stone, 010=Paper, 100=Scissor)
+    output reg [6:0] seg,   // 7-segment display
+    output reg [3:0] an,    // 7-segment anode control
+    output reg [2:0] LED    // LED to indicate user move
+);
+    
+    reg [2:0] user_move;       // Stores user's move
+    reg [2:0] computer_move;   // Stores computer's move
+    reg [1:0] state;           // Game state
+    reg [31:0] counter;        // Delay counter for display timing
+
+    // Pseudo-random number generator (LFSR)
+    reg [3:0] lfsr = 4'b1011;
+
+    // State encoding
+    localparam IDLE = 2'b00, SHOW_COMPUTER_MOVE = 2'b01, SHOW_RESULT = 2'b10;
+    
+    always @(posedge clk) begin
+        // Random number generation using LFSR
+        lfsr <= {lfsr[2:0], lfsr[3] ^ lfsr[2]};
+        
+        case (state)
+            IDLE: begin
+                counter <= 0;
+                if (btnC) begin
+                    user_move <= SW;  
+                    LED <= SW;  // Indicate user move on LEDs
+
+                    // Generate a random computer move (maps 2 LSBs to 3 options)
+                    case (lfsr[1:0])
+                        2'b00: computer_move <= 3'b001; // Stone
+                        2'b01: computer_move <= 3'b010; // Paper
+                        2'b10: computer_move <= 3'b100; // Scissor
+                        default: computer_move <= 3'b001; // Default Stone
+                    endcase
+
+                    state <= SHOW_COMPUTER_MOVE;
+                end
+            end
+            
+            SHOW_COMPUTER_MOVE: begin
+                counter <= counter + 1;
+                if (counter < 3_000_000) begin
+                    case (computer_move)
+                        3'b001: seg <= 7'b0001100; // "ST"
+                        3'b010: seg <= 7'b0000110; // "P"
+                        3'b100: seg <= 7'b0011000; // "SC"
+                    endcase
+                    an <= 4'b1110; // Activate 7-segment display
+                end else begin
+                    state <= SHOW_RESULT;
+                    counter <= 0;
+                end
+            end
+            
+            SHOW_RESULT: begin
+                counter <= counter + 1;
+                if (counter < 3_000_000) begin
+                    if (user_move == computer_move) 
+                        seg <= 7'b0110000; // "T" for Tie
+                    else if ((user_move == 3'b001 && computer_move == 3'b100) || // Stone beats Scissor
+                             (user_move == 3'b010 && computer_move == 3'b001) || // Paper beats Stone
+                             (user_move == 3'b100 && computer_move == 3'b010))  // Scissor beats Paper
+                        seg <= 7'b0000110; // "W" for Win
+                    else
+                        seg <= 7'b0001110; // "L" for Lose
+
+                    an <= 4'b1110; // Display active
+                end else begin
+                    state <= IDLE; // Reset back to waiting for user input
+                end
+            end
+        endcase
+    end
+endmodule
