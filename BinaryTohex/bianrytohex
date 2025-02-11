@@ -6,8 +6,8 @@ module BinaryToHexaDecimalConverter (
     output reg [9:0] led       // LEDs to match the input switches
 );
 
-    reg [3:0] hex_digits [3:0];  // Storage for 4 hexadecimal digits
-    reg [15:0] refresh_counter = 0; // Refresh rate counter
+    reg [3:0] hex_digits [3:0];  
+    reg [15:0] refresh = 0; // Refresh rate counter
     reg [1:0] digit_select = 0; // Digit selection
     
     
@@ -20,16 +20,16 @@ module BinaryToHexaDecimalConverter (
         led <= sw; // Mirror switches to LEDs
     end
 
-    // **Clock division for display multiplexing**
+
     always @(posedge clk) begin
-        refresh_counter <= refresh_counter + 1;
-        if (refresh_counter == 50000) begin
-            refresh_counter <= 0;
+        refresh <= refresh + 1;
+        if (refresh == 50000) begin
+            refresh <= 0;
             digit_select <= digit_select + 1;
         end
     end
 
-    // **Multiplexing 7-segment display**
+   
     always @(*) begin
         case (digit_select)
             2'b00: begin seg = hex_to_7seg(hex_digits[0]); an = 4'b1110; end // Ones place
@@ -39,7 +39,7 @@ module BinaryToHexaDecimalConverter (
         endcase
     end
 
-    // **Hexadecimal to 7-Segment Lookup Table**
+    
     function [6:0] hex_to_7seg;
         input [3:0] hex;
         begin
