@@ -1,0 +1,67 @@
+module BinaryToHexaDecimalConverter (
+    input wire clk,            // FPGA clock (50MHz or 100MHz)
+    input wire [9:0] sw,       // 10-bit binary input from switches
+    output reg [6:0] seg,      // 7-segment display segments (A-G)
+    output reg [3:0] an,       // 4-digit display enable (active-low)
+    output reg [9:0] led       // LEDs to match the input switches
+);
+
+    reg [3:0] hex_digits [3:0];  // Storage for 4 hexadecimal digits
+    reg [15:0] refresh_counter = 0; // Refresh rate counter
+    reg [1:0] digit_select = 0; // Digit selection
+    
+    
+    always @(posedge clk) begin
+        hex_digits[0] <= sw[3:0];   // Least significant hex digit
+        hex_digits[1] <= sw[7:4];   // Second hex digit
+        hex_digits[2] <= {2'b00, sw[9:8]};  // Third hex digit (only 2 bits used)
+        hex_digits[3] <= 4'b0000;   // Fourth digit always 0 (unused)
+
+        led <= sw; // Mirror switches to LEDs
+    end
+
+    // **Clock division for display multiplexing**
+    always @(posedge clk) begin
+        refresh_counter <= refresh_counter + 1;
+        if (refresh_counter == 50000) begin
+            refresh_counter <= 0;
+            digit_select <= digit_select + 1;
+        end
+    end
+
+    // **Multiplexing 7-segment display**
+    always @(*) begin
+        case (digit_select)
+            2'b00: begin seg = hex_to_7seg(hex_digits[0]); an = 4'b1110; end // Ones place
+            2'b01: begin seg = hex_to_7seg(hex_digits[1]); an = 4'b1101; end // Tens place
+            2'b10: begin seg = hex_to_7seg(hex_digits[2]); an = 4'b1011; end // Hundreds place
+            2'b11: begin seg = hex_to_7seg(hex_digits[3]); an = 4'b0111; end // Thousands place
+        endcase
+    end
+
+    // **Hexadecimal to 7-Segment Lookup Table**
+    function [6:0] hex_to_7seg;
+        input [3:0] hex;
+        begin
+            case (hex)
+                4'h0: hex_to_7seg = 7'b1000000; // 0
+                4'h1: hex_to_7seg = 7'b1111001; // 1
+                4'h2: hex_to_7seg = 7'b0100100; // 2
+                4'h3: hex_to_7seg = 7'b0110000; // 3
+                4'h4: hex_to_7seg = 7'b0011001; // 4
+                4'h5: hex_to_7seg = 7'b0010010; // 5
+                4'h6: hex_to_7seg = 7'b0000010; // 6
+                4'h7: hex_to_7seg = 7'b1111000; // 7
+                4'h8: hex_to_7seg = 7'b0000000; // 8
+                4'h9: hex_to_7seg = 7'b0010000; // 9
+                4'hA: hex_to_7seg = 7'b0001000; // A
+                4'hB: hex_to_7seg = 7'b0000011; // B
+                4'hC: hex_to_7seg = 7'b1000110; // C
+                4'hD: hex_to_7seg = 7'b0100001; // D
+                4'hE: hex_to_7seg = 7'b0000110; // E
+                4'hF: hex_to_7seg = 7'b0001110; // F
+                default: hex_to_7seg = 7'b1111111; // Blank
+            endcase
+        end
+    endfunction
+endmodule
